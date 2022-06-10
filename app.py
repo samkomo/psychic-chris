@@ -32,10 +32,10 @@ def get_round_step_quantity(symbol, qty):
         qty = minQty
     return round_step_size(qty, minQty)
 
-def order(side, quantity, symbol, price, order_type=ORDER_TYPE_MARKET):
+def order(side, quantity, symbol, price, order_type=ORDER_TYPE_LIMIT):
     try:
         logging.info(f"sending {symbol}-{order_type} order - {side} {quantity} DOGE coins @ {price} USDT ")
-        order = client.create_order(symbol=symbol, side=side, type=order_type, quantity=quantity)
+        order = client.create_order(symbol=symbol, side=side, type=order_type, quantity=quantity, price=price, timeInForce=TIME_IN_FORCE_GTC)
     except Exception as e:
         logging.error("Error occurred while placing order > {}".format(e.message))
         return e
