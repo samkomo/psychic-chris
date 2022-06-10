@@ -1,0 +1,6 @@
+2022-06-11 Saturday 08:19:48 werkzeug:INFO: * Detected change in '/Users/z5239604/Development/Workspace/src/TradingView/tradingview-binance-strategy-alert-webhook/app.py', reloading
+2022-06-11 Saturday 08:19:55 root:INFO:sending DOGEUSDT-MARKET order - BUY 101 DOGE coins @ 0.07882 USDT 
+2022-06-11 Saturday 08:19:56 root:ERROR:Error occurred while placing order > Filter failure: MIN_NOTIONAL
+2022-06-11 Saturday 08:19:56 werkzeug:INFO:127.0.0.1 - - [11/Jun/2022 08:19:56] "POST /webhook HTTP/1.1" 200 -
+2022-06-11 Saturday 08:24:32 werkzeug:INFO: * Detected change in '/Users/z5239604/Development/Workspace/src/TradingView/tradingview-binance-strategy-alert-webhook/app.py', reloading
+2022-06-11 Saturday 08:24:45 werkzeug:INFO: * Detected change in '/Users/z5239604/Development/Workspace/src/TradingView/tradingview-binance-strategy-alert-webhook/app.py', reloading

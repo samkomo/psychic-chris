@@ -5,6 +5,10 @@ from binance.enums import *
 from decimal import Decimal as D, ROUND_DOWN, ROUND_UP
 import decimal
 import logging
+logging.getLogger().setLevel(logging.DEBUG)
+
+# logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG)
+# logging.basicConfig(handlers=[logging.FileHandler(filename="./log_records.txt", encoding='utf-8', mode='a+')],format="%(asctime)s %(name)s:%(levelname)s:%(message)s", datefmt="%F %A %T", level=logging.INFO)
 
 app = Flask(__name__)
 
@@ -28,9 +32,9 @@ def get_round_step_quantity(symbol, qty):
         qty = minQty
     return round_step_size(qty, minQty)
 
-def order(side, quantity, symbol, order_type=ORDER_TYPE_MARKET):
+def order(side, quantity, symbol, price, order_type=ORDER_TYPE_MARKET):
     try:
-        print(f"sending order {order_type} - {side} {quantity} {symbol}")
+        logging.info(f"sending {symbol}-{order_type} order - {side} {quantity} DOGE coins @ {price} USDT ")
         order = client.create_order(symbol=symbol, side=side, type=order_type, quantity=quantity)
     except Exception as e:
         logging.error("Error occurred while placing order > {}".format(e.message))
@@ -56,10 +60,11 @@ def webhook():
 
     side = data['strategy']['order_action'].upper()
     quantity = data['strategy']['order_contracts']
+    price = data['strategy']['order_price']
     ticker = data['ticker']
 
 
-    order_response = order(side, get_round_step_quantity(ticker,quantity), ticker)
+    order_response = order(side, get_round_step_quantity(ticker,quantity), ticker, price)
 
     if isinstance(order_response, Exception) :
         return {
