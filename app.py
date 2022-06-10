@@ -15,7 +15,7 @@ def round_step_size(quantity,step_size):
     if step_size == 1.0:
         return math.floor(quantity)
     elif step_size < 1.0:
-        return Decimal(f'{quantity}').quantize(Decimal(f'{step_size}'), rounding=ROUND_DOWN)
+        return D(f'{quantity}').quantize(D(f'{step_size}'), rounding=ROUND_DOWN)
 
 def get_round_step_quantity(symbol, qty):
     info = client.get_symbol_info(symbol)
@@ -48,6 +48,7 @@ def webhook():
     data = json.loads(request.data)
     
     if data['passphrase'] != config.WEBHOOK_PASSPHRASE:
+        logging.error("- invalid passphrase")
         return {
             "code": "error",
             "message": "Nice try, invalid passphrase"
