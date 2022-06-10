@@ -1,19 +1,40 @@
-import json, config
+import json, config, math
 from flask import Flask, request, jsonify, render_template
 from binance.client import Client
 from binance.enums import *
+from decimal import Decimal as D, ROUND_DOWN, ROUND_UP
+import decimal
+import logging
 
 app = Flask(__name__)
 
 client = Client(config.API_KEY, config.API_SECRET)
+
+def round_step_size(quantity,step_size):
+    # step_size_dec = D(str(size))
+    if step_size == 1.0:
+        return math.floor(quantity)
+    elif step_size < 1.0:
+        return Decimal(f'{quantity}').quantize(Decimal(f'{step_size}'), rounding=ROUND_DOWN)
+
+def get_round_step_quantity(symbol, qty):
+    info = client.get_symbol_info(symbol)
+    for x in info["filters"]:
+        if x["filterType"] == "LOT_SIZE":
+            minQty = float(x["minQty"])
+            maxQty = float(x["maxQty"])
+            stepSize= float(x["stepSize"])
+    if qty < minQty:
+        qty = minQty
+    return round_step_size(qty, minQty)
 
 def order(side, quantity, symbol, order_type=ORDER_TYPE_MARKET):
     try:
         print(f"sending order {order_type} - {side} {quantity} {symbol}")
         order = client.create_order(symbol=symbol, side=side, type=order_type, quantity=quantity)
     except Exception as e:
-        print("an exception occured - {}".format(e))
-        return False
+        logging.error("Error occurred while placing order > {}".format(e.message))
+        return e
 
     return order
 
@@ -34,17 +55,18 @@ def webhook():
 
     side = data['strategy']['order_action'].upper()
     quantity = data['strategy']['order_contracts']
-    order_response = order(side, quantity, "DOGEUSDT")
+    ticker = data['ticker']
 
-    if order_response:
+
+    order_response = order(side, get_round_step_quantity(ticker,quantity), ticker)
+
+    if isinstance(order_response, Exception) :
         return {
-            "code": "success",
-            "message": "order executed"
+            "code": order_response.code,
+            "message": order_response.message
         }
     else:
-        print("order failed")
-
         return {
-            "code": "error",
-            "message": "order failed"
+            "status": order_response['status'],
+            "fills": order_response['fills']
         }
