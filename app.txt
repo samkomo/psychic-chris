@@ -1,0 +1,83 @@
+import json, config, math
+from flask import Flask, request, jsonify, render_template
+from binance.client import Client
+from pybit import usdt_perpetual
+import decimal
+import logging
+logging.getLogger().setLevel(logging.DEBUG)
+
+# logging.basicConfig(filename='example.log', encoding='utf-8', level=logging.DEBUG)
+# logging.basicConfig(handlers=[logging.FileHandler(filename="./log_records.txt", encoding='utf-8', mode='a+')],format="%(asctime)s %(name)s:%(levelname)s:%(message)s", datefmt="%F %A %T", level=logging.INFO)
+
+app = Flask(__name__)
+
+bybit = usdt_perpetual.HTTP(
+    endpoint=config.ENDPOINT,
+    api_key=config.BYBIT_API_KEY,
+    api_secret=config.BYBIT_API_SECRET
+)
+
+def create_bybit_order(data, order_type="Limit"):
+    try:
+        side = data['strategy']['order_action'].upper()
+        ticker = data['ticker']
+        # info = binance.get_symbol_info(ticker)
+        # print(info)
+        quantity = data['strategy']['order_contracts'] 
+        # precision = get_quantity_precision()
+        price = data['strategy']['order_price']
+
+        logging.info(f"sending {ticker}-{order_type} order - {side} {quantity} {info['baseAsset']} coins @ {price} {info['quoteAsset']} ")
+
+        order = bybit.create_order(symbol=ticker, side=side, type=order_type, quantity=quantity, price=price, timeInForce=TIME_IN_FORCE_GTC)
+    except Exception as e:
+        logging.error("ORDER: Error occurred while placing order > {}".format(e.message))
+        return e
+
+    return order
+
+@app.route('/')
+def welcome():
+    return render_template('index.html')
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    #print(request.data)
+    data = json.loads(request.data)
+    
+    if data['passphrase'] != config.WEBHOOK_PASSPHRASE:
+        logging.error("- invalid passphrase")
+        return {
+            "code": "error",
+            "message": "Nice try, invalid passphrase"
+        }
+
+
+#     print(bybit.place_active_order(
+#     symbol="BTCUSDT",
+#     side="Sell",
+#     order_type="Limit",
+#     qty=0.01,
+#     price=8083,
+#     time_in_force="GoodTillCancel",
+#     reduce_only=False,
+#     close_on_trigger=False
+# ))
+    print(bybit.my_position(
+        symbol="BTCUSDT"
+    ))
+
+    order_response = bybit.my_position(
+        symbol="BTCUSDT"
+    )
+    # order_response = create_bybit_order(data)
+
+
+    if isinstance(order_response, Exception) :
+        return {
+            "code": order_response.code,
+            "message": order_response.message
+        }
+    else:
+        return order_response
+        
