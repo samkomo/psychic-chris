@@ -1,7 +1,7 @@
 import json, config, math, logging
 from flask import Flask, request, jsonify, render_template
-from pybit import usdt_perpetual
-from bybit import open_position, parse_webhook
+# from pybit import usdt_perpetual
+# from bybit import open_position, parse_webhook
 from binance_client import create_binance_order
 from binance.enums import *
 from binance.exceptions import BinanceAPIException, BinanceOrderException
@@ -33,8 +33,8 @@ def webhook():
     	response = create_binance_order(data)
     	
 
-    if data['exchange'] == "BYBIT":
-    	response = open_position(data)
+    # if data['exchange'] == "BYBIT":
+    # 	response = open_position(data)
 
     if isinstance(response, BinanceAPIException):
 	    return {
