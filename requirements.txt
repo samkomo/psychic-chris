@@ -1,4 +1,9 @@
 flask
 gunicorn
 python-binance
-bybit
+pybit
+loguru==0.6.0
+ccxt
+python-dotenv
+schedule
+autopep8

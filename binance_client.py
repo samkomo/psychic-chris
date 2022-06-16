@@ -1,10 +1,14 @@
-import json, config, math
+import configparser
+import json, math
 from binance.client import Client
 from binance.enums import *
 from decimal import Decimal as D, ROUND_DOWN, ROUND_UP
 import logging
 
-binance = Client(config.BINANCE_API_KEY, config.BINANCE_API_SECRET)
+config = configparser.ConfigParser()
+config.read('config.cfg')
+
+binance = Client(config['BINANCE']['API_KEY'], config['BINANCE']['API_SECRET'])
 logging.getLogger().setLevel(logging.DEBUG)
 
 
