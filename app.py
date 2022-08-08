@@ -40,13 +40,6 @@ def webhook():
 
     response = run_bot(data)
 
-    # if data['exchange'] == "BYBIT":
-    # 	response = open_position(data)
+    print(json.dumps(response, indent=2))
 
-    if isinstance(response, Exception):
-        return {
-            "code": response.code,
-            "message": response.message
-        }
-
-    return json.dumps(response, indent=2)
+    return response

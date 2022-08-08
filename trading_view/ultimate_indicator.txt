@@ -1,0 +1,184 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © Kaniugu
+
+//@version=5
+strategy("Ultimate Indicator", overlay = true, default_qty_type=strategy.cash, 
+     default_qty_value=1500, currency=currency.USDT, initial_capital=100, commission_type=strategy.commission.percent, commission_value=0.075) //, margin_long = 1./25*50, margin_short = 1./25*50
+     
+
+
+
+// ***************************************************
+// Backtest Parameters
+// ***************************************************
+start_year      =    input.int(2022, "Start Year", group="Backtest")
+start_month     =    input.int(5, "Start Month", group="Backtest")
+start_day       =    input.int(1, "Start Day", group="Backtest")
+test_period     =    timestamp(start_year, start_month, start_day, 0, 0)
+strat_dir_input =    input.string(title="Direction", defval="all", options=["long", "short", "all"], group="Backtest")
+strat_dir_value =    strat_dir_input == "long" ? strategy.direction.long : strat_dir_input == "short" ? strategy.direction.short : strategy.direction.all
+
+timeCondition   =    time >= test_period
+strategy.risk.allow_entry_in(strat_dir_value)
+
+EMAFilter       =    input.bool(true, "Enable EMA & ADX Filters", group = "Backtest")
+
+// ***************************************************
+// RISK & REWARD
+// ***************************************************
+// takePer         = input.float(5, "Take Profit %", minval=1, maxval=10, step=1, group = "Risk & Reward")/100
+// stopPer         = input.float(4, "Stop Loss %", minval=1, maxval=10, step=1, group = "Risk & Reward")/100
+takePer = input.float(title="Take Profit:", defval=1, minval=0.1,  group = "Risk & Reward") * 0.01
+stopPer = input.float(title="Stop Loss:  ", defval=1, minval=0.1,  group = "Risk & Reward") * 0.01
+// position = input.string("Auto", "Position", options = ["Auto", "Auto Long", "Auto Short", "Fixed", "Fixed Long", "Fixed Short"]), quantity = input.float(50, "Quantity")
+// profit = input.float(1.2, "Take Profit", minval = 0.2, group = "Risk & Reward", step=0.2)
+// loss = input.string("ATR", "Stop Loss", options = ["ATR", "ATR x 2", "HHLL"], group = "Risk & Reward")
+
+// ATR
+atr = ta.atr(14)
+price(value) => value > 10.0 ? str.format("{0,number,#.##}", value) : str.tostring(value)
+
+// ***************************************************
+// EMA FAST AND SLOW
+// ***************************************************
+fast_length1 = input.int(title="EMA Trend 1", defval=50, minval=25, maxval=100, step=25, group = "EMA Filter")
+slow_length2 = input.int(title="EMA Trend 2 ", defval=200, minval=100, maxval=400, step=30, group = "EMA Filter")
+sma_source = "EMA"
+sma_signal = "EMA"
+
+// Calculating
+emaFast=ta.ema(close,fast_length1)
+emaSlow=ta.ema(close ,slow_length2)
+
+plot(EMAFilter ? emaFast : na, "K", color=#ffa700, linewidth=2)
+plot(EMAFilter ? emaSlow : na, "K", color=#4666ff, linewidth=2)
+
+// ***************************************************
+// ADX
+// ***************************************************
+adxFilter       =   input.float(20, "Filter Value", minval=1, group = "ADX Filter")
+len          =   input.int(14, minval=1, title="DI Length", group = "ADX Filter")
+lensig       =   input.int(14, title="ADX Smoothing", minval=1, group = "ADX Filter")
+[diplus, diminus, adx] = ta.dmi(len, lensig)
+
+
+// ***************************************************
+// ULTIMATE INDICATOR
+// ***************************************************
+//VALUES
+period          = input.int(100,   "Period", minval = 1, maxval=200, group = "Ultimate Indicator")
+factor          = input.float(1.0, "Factor", minval = 0.1, maxval=4, group = "Ultimate Indicator")
+trendline       = input.bool(true, "Show Trendlines", group = "Ultimate Indicator")
+signal          = input.bool(true, "Enable Signals", group = "Ultimate Indicator")
+
+// PRECISION
+precision(v)    => str.format("{0,number,#.########}", v)
+
+// LINEAR REGRESSION CHANNEL
+channel(src, n) =>
+    avg         = math.sum(src, n) / n
+    slope       = ta.linreg(src, n, 0) - ta.linreg(src, n, 1)
+    intercept   = avg - slope * math.floor(n / 2) + ((1 - (n % 2)) / 2) * slope
+    linreg      = intercept  + slope * (n - 1), deviation = 0.0
+    for index = 0 to n - 1
+        deviation := deviation + math.pow(src[index] - (slope * (n - index) + intercept), 2)
+    deviation := math.sqrt(deviation / n) * factor
+    [linreg, intercept, deviation, slope, n]
+
+// POINT
+[linreg, intercept, deviation, slope, length] = channel(close, period)
+
+// LEVEL
+var peak        = float(na)
+var trough      = float(na)
+peak            := open >  close and open[1] <= close[1] ? high : peak
+trough          := open <= close and open[1] >  close[1] ? low  : trough
+
+// HIGH RISK LEVEL
+var peakHighRisk = float(na), var troughHighRisk = float(na)
+peakHighRisk    := peak > peak[1]     and close > linreg + deviation ? close : peakHighRisk
+troughHighRisk  := trough < trough[1] and close < linreg - deviation ? close : troughHighRisk
+
+// HIGH RISK SIGNAL
+
+short   = EMAFilter ? (timeCondition and peakHighRisk > peakHighRisk[1] and emaFast < emaSlow and adx < adxFilter) : timeCondition and peakHighRisk > peakHighRisk[1]
+long    = EMAFilter ? (timeCondition and troughHighRisk < troughHighRisk[1] and emaFast > emaSlow and adx > adxFilter) : timeCondition and troughHighRisk < troughHighRisk[1] 
+
+// SPREAD
+var top = float(na), var bottom = float(na)
+if short
+    label.new(bar_index, na, str.format("{0,number,#.##}", (high - bottom) / high * 100), yloc = yloc.abovebar, style = label.style_none, textcolor = color.red),  top := high
+if long
+    label.new(bar_index, na, str.format("{0,number,#.##}", (top - low) / top * 100),      yloc = yloc.belowbar, style = label.style_none, textcolor = color.blue), bottom := low
+
+// UPDATE TRENDLINE
+var line median = na, var line resistance = na, var line support = na, var line upper = na, var line lower = na
+line.delete(median[1]), line.delete(resistance[1]), line.delete(support[1]), line.delete(upper[1]), line.delete(lower[1])
+
+// DRAW TRENDLINE
+median          := trendline ? line.new(bar_index - length + 1, intercept, bar_index, linreg, xloc.bar_index, extend.right, slope < 0 ? color.lime : color.aqua, line.style_dotted, 2) : na
+resistance      := trendline ? line.new(bar_index - length + 1, intercept + deviation, bar_index, linreg + deviation, xloc.bar_index, extend.right, color.red ,  line.style_dashed, 2) : na
+support         := trendline ? line.new(bar_index - length + 1, intercept - deviation, bar_index, linreg - deviation, xloc.bar_index, extend.right, color.blue,  line.style_dashed, 2) : na
+upper           := trendline ? line.new(bar_index - length + 1, intercept + deviation / 2, bar_index, linreg + deviation / 2, xloc.bar_index, extend.right, color.red , line.style_dashed, 1) : na
+lower           := trendline ? line.new(bar_index - length + 1, intercept - deviation / 2, bar_index, linreg - deviation / 2, xloc.bar_index, extend.right, color.blue, line.style_dashed, 1) : na
+
+// DRAW SIGNAL
+plotshape(short, style = shape.xcross,  color = color.red,  location = location.abovebar, size = size.tiny)
+plotshape(long,  style = shape.diamond, color = color.blue, location = location.belowbar, size = size.tiny)
+
+// DRAW RIBBON
+ribbon = ta.ema(close, 24) > ta.ema(close, 8) ? color.aqua : color.lime
+plot(ta.ema(close,  8), color = color.new(ribbon, 40), title =  "EMA 8")
+plot(ta.ema(close, 12), color = color.new(ribbon, 50), title = "EMA 12")
+plot(ta.ema(close, 16), color = color.new(ribbon, 60), title = "EMA 16")
+plot(ta.ema(close, 20), color = color.new(ribbon, 70), title = "EMA 20")
+plot(ta.ema(close, 24), color = color.new(ribbon, 80), title = "EMA 24")
+fill(plot((open + close) / 2, display = display.none), plot(ta.ema(close, 24), display = display.none), color = color.new(ribbon, 96))
+
+// ENTRY POINT
+// alertcondition(short, title = "Short", message = "Entry Short")
+// alertcondition(long,  title = "Long",  message = "Entry Long")
+
+
+//
+// // The Fixed Percent Stop Loss Code
+// // User Options to Change Inputs (%)
+// stopPer = input.float(0.4, title='Stop Loss %') / 100
+// takePer = input.float(0.5, title='Take Profit %') / 100
+
+// Determine where you've entered and in what direction
+longStop = strategy.position_avg_price * (1 - stopPer)
+shortStop = strategy.position_avg_price * (1 + stopPer)
+shortTake = strategy.position_avg_price * (1 - takePer)
+longTake = strategy.position_avg_price * (1 + takePer)
+
+
+// longStop = math.min(low[0], low[1], low[2]) - (loss == "ATR" ? atr : loss == "ATR x 2" ? atr * 2 : 0)
+// longTake = open + (open - longStop) * profit
+// shortStop = math.max(high[0], high[1], high[2]) + (loss == "ATR" ? atr : loss == "ATR x 2" ? atr * 2 : 0)
+// shortTake = open - (shortStop - open) * profit
+
+if (long)
+    long_message = "{\"stop_loss\":" + price(longStop) + ",\n" + "\"take_profit\":" + price(longTake) + "}"
+    strategy.entry("Long", strategy.long, alert_message=long_message)
+if (short)
+    short_message = "{\"stop_loss\":" + price(shortStop) + ",\n" + "\"take_profit\":" + price(shortTake) + "}"
+    strategy.entry("Short", strategy.short, alert_message=short_message)
+    
+    
+if strategy.position_size > 0 
+    strategy.exit(id="Close Long", stop=longStop, limit=longTake)
+if strategy.position_size < 0
+    strategy.exit(id="Close Short", stop=shortStop, limit=shortTake)
+
+//PLOT FIXED SLTP LINE
+ls = plot(strategy.position_size > 0 ? longStop : na, style=plot.style_linebr, color=color.new(color.red, 0), transp=80, linewidth=1, title='Long Fixed SL')
+ss = plot(strategy.position_size < 0 ? shortStop : na, style=plot.style_linebr, color=color.new(color.red, 0), transp=80, linewidth=1, title='Short Fixed SL')
+lt =plot(strategy.position_size > 0 ? longTake : na, style=plot.style_linebr, color=color.new(#008844, 0), transp=80, linewidth=1, title='Long Take Profit')
+st = plot(strategy.position_size < 0 ? shortTake : na, style=plot.style_linebr, color=color.new(#008844, 0), transp=80, linewidth=1, title='Short Take Profit')
+avg = plot( strategy.position_avg_price, style = plot.style_linebr )
+
+fill(lt, avg, color = #008844, transp=80)
+fill(avg, ls, color = color.red, transp=80)
+fill(st, avg, color = #008844, transp=80)
+fill(avg, ss, color = color.red, transp=80)

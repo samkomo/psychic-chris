@@ -2,3 +2,6 @@ python/
 app.tex
 lib/
 bin/
+venv/
+pybit.py
+
