@@ -27,7 +27,7 @@ def run_bot(data):
         price = data['strategy']['order_price']
         stop_loss = data['strategy']['alert_message']['stop_loss']
         take_profit = data['strategy']['alert_message']['take_profit']
-        leverage = data['strategy']['alert_message']['leverage']
+        leverage = 50
     except Exception as e:
             print("=========Error============")
             print(e)
