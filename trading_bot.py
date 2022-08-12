@@ -33,7 +33,10 @@ def run_bot(data):
             print(e)
             # return e
 
-    params = {'stop_loss': stop_loss, 'take_profit':take_profit}
+    if stop_loss == "NaN" or take_profit == "NaN":
+        params = {}
+    else: 
+        params = {'stop_loss': stop_loss, 'take_profit':take_profit}
 
     if exchange.has['setLeverage']:
         try:
