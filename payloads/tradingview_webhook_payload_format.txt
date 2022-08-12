@@ -24,5 +24,3 @@
         "prev_market_position_size": {{strategy.prev_market_position_size}}
     }
 }
-
-"alert_message":{{strategy.order.alert_message}},
