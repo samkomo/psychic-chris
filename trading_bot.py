@@ -4,13 +4,17 @@ import string
 import ccxt
 import logging
 
+from jinja2 import Undefined
+
 # instantiate 
 logging.getLogger().setLevel(logging.DEBUG)
 config = configparser.ConfigParser()
 config.read('config.cfg')
 
-def run_bot(data):
+def run_bot(data, function):
     exchange_id = data['exchange']
+    symbol = data['ticker']
+
     exchange_class = getattr(ccxt, exchange_id.lower())
 
     exchange = exchange_class({
@@ -19,40 +23,49 @@ def run_bot(data):
         #   'password': config[exchange_id]['PASSWORD']
     })
 
-    try:
-        symbol = data['ticker']
-        side = data['strategy']['order_action']
-        type = 'market'
-        amount = data['strategy']['order_contracts']
-        price = data['strategy']['order_price']
-        stop_loss = data['strategy']['alert_message']['stop_loss']
-        take_profit = data['strategy']['alert_message']['take_profit']
-        leverage = 50
-    except Exception as e:
-            print("=========Error============")
-            print(e)
-            # return e
+    markets = exchange.load_markets()
+    market = exchange.market(symbol)
 
-    if stop_loss == "NaN" or take_profit == "NaN":
-        params = {}
-    else: 
-        params = {'stop_loss': stop_loss, 'take_profit':take_profit}
 
-    if exchange.has['setLeverage']:
+    if function == "createOrder":    
         try:
-            exchange.setLeverage(leverage, symbol, params = {"marginMode": "isolated"})
+            side = data['strategy']['order_action']
+            type = 'limit'
+            amount = data['strategy']['order_contracts']
+            price = data['strategy']['order_price']
+            stop_loss = data['strategy']['alert_message']['stop_loss']
+            take_profit = data['strategy']['alert_message']['take_profit']
+            leverage = 50
         except Exception as e:
-            print("=========Info============")
-            print(e)
+                print("=========Error============")
+                print(e)
+                # return e
 
-    if exchange.has['createOrder']:
-        try:
-            logging.info(f"sending {side}-{type} order - {amount} {symbol}  coins @ {price} USDT")
-            order = exchange.createOrder(symbol, type, side, amount, price, params)
-            return order
-        except Exception as e:
-            print("=========Error============")
-            print(e)
+        if stop_loss == "NaN" or take_profit == "NaN":
+            params = {}
+        else: 
+            params = {'stop_loss': stop_loss, 'take_profit':take_profit}
+
+        if exchange.has['setLeverage']:
+            try:
+                exchange.setLeverage(leverage, symbol, params = {"marginMode": "isolated"})
+            except Exception as e:
+                print("=========Info============")
+                print(e)
+        if exchange.has['createOrder']:
+            try:
+                logging.info(f"sending {side}-{type} order - {amount} {symbol}  coins @ {price} USDT")
+                order = exchange.createOrder(symbol, type, side, amount, price, params)
+                return order
+            except Exception as e:
+                print("=========Error============")
+                print(e)
+    if function == "fetchPositions":
+        if exchange.has['fetchOpenOrders']:
+            response = exchange.fetchOpenOrders(symbol, params = {})
+            linear_positions = response['result']
+            print(linear_positions)
+
  
 # bot = run_bot(data)
 # print(json.dumps(bot, indent=2))

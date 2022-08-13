@@ -38,8 +38,27 @@ def webhook():
         }
     print(json.dumps(data, indent=2))
 
-    response = run_bot(data)
+    response = run_bot(data, "createOrder")
 
-    print(json.dumps(response, indent=2))
+    print(response)
+
+    return response
+
+# positions end point
+@app.route('/openpositions', methods=['POST'])
+def positions():
+    data = json.loads(request.data)
+    print(config['GLOBAL']['WEBHOOK_PASSPHRASE'])
+    if data['passphrase'] != config['GLOBAL']['WEBHOOK_PASSPHRASE']:
+        logging.error("- invalid passphrase")
+        return {
+            "code": "error",
+            "message": "Nice try, invalid passphrase"
+        }
+    print(json.dumps(data, indent=2))
+
+    response = run_bot(data, "fetchPositions")
+
+    print(response)
 
     return response
